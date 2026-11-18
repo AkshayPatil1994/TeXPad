@@ -27,24 +27,29 @@ A free, offline LaTeX IDE for iPad. It compiles on the device — no server, no 
 - The root `.tex` file's folder is the working directory; paths are relative to the project root.
 
 ## Build from source
-Requirements: Xcode 26+, [XcodeGen](https://github.com/yonaskolb/XcodeGen), CMake (`brew install cmake`, to build libgit2), Node 20+ (only to rebuild the editor), a local TeX Live (only to rebuild the TeX bundle).
+Requirements: Xcode 26+, [XcodeGen](https://github.com/yonaskolb/XcodeGen) and CMake (`brew install xcodegen cmake`), Node 20+ only if you change the editor.
+The repository holds source only; the TeX Live subset and fonts (~400 MB) and libgit2 are fetched or built by scripts.
 
 ```sh
-tools/seed_texlive.sh && python3 tools/seed_texlive_extra.py && python3 tools/close_deps.py && python3 tools/seed_fonts.py   # builds ./texlive from your local TeX Live (~350 MB, git-ignored)
-tools/build-libgit2.sh        # libgit2 from source -> Vendor/libgit2.xcframework (~25 s)
-cp Config/Local.xcconfig.example Config/Local.xcconfig   # then put your own Team ID in it
-(cd editor-src && npm install && node build.mjs)   # rebuilds TexPad/web/editor/editor.bundle.js
+tools/build-libgit2.sh         # libgit2 from source -> Vendor/libgit2.xcframework (pinned commit, ~1 min)
+tools/fetch_bundle.sh          # prebuilt TeX bundle -> texlive/ + fonts/ (SHA-256 pinned in tools/bundle.conf)
+cp Config/Local.xcconfig.example Config/Local.xcconfig   # put your own Team ID in it
 xcodegen generate              # creates TexPad.xcodeproj from project.yml
 open TexPad.xcodeproj          # set your Team under Signing & Capabilities, then Run
 ```
+
+No bundle download? If you have MacTeX/TeX Live installed you can build the same folders yourself instead of `fetch_bundle.sh`:
+`tools/seed_texlive.sh && python3 tools/seed_texlive_extra.py && python3 tools/close_deps.py && python3 tools/seed_fonts.py`.
+To rebuild the editor bundle after changing `editor-src/`: `(cd editor-src && npm ci && node build.mjs)`.
+Maintainers: `tools/make_bundle.sh <dir>` packs `texlive/` + `fonts/` for a GitHub Release; put its URL and hash in `tools/bundle.conf`.
+
+Free Apple ID builds: change `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml` to one of your own; builds expire after 7 days and must be reinstalled.
 
 Developer scripts (simulator):
 - `tools/run-sim.sh [Sample] [seconds] [screenshot.png]` — build, launch, optionally open a bundled sample and screenshot.
 - `tools/make_icon.py` — regenerates the app icon (needs Pillow).
 - `tools/autotest.sh <project dir> [main.tex]` — headless build of a folder; prints parsed diagnostics. Missing TeX files are copied from your local TeX Live (`tools/fetch_tex_files.py`) so the bundle converges.
 - `xcodebuild test -scheme TexPad …` — unit tests (log parser, BibTeX parser, index, search, sync matching).
-
-Free Apple ID builds: copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` with your Team ID, and change `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml` to one of your own.
 
 The first launch builds the LaTeX format file (a few seconds) and caches it.
 
