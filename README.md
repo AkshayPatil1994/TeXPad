@@ -2,6 +2,8 @@
 
 A free, offline LaTeX IDE for iPad. It compiles on the device — no server, no network.
 
+<p align="center"><img src="docs/screenshot.png" alt="TexPad on iPad: editor with LaTeX highlighting on the left, the compiled PDF with thumbnails on the right" width="900"></p>
+
 - **Engine:** pdfTeX (SwiftLaTeX WebAssembly build) in a hidden `WKWebView`, with a bundled TeX Live subset served through a `tex://` URL scheme.
 - **Editor:** CodeMirror 6 (syntax highlighting, folding, bracket matching, LaTeX autocomplete, find/replace, multi-cursor) in a `WKWebView`.
 - **UI:** SwiftUI, VS Code-style — activity bar, explorer, tabs, PDF preview, problems panel, command palette (⇧⌘P), quick open (⌘P).
