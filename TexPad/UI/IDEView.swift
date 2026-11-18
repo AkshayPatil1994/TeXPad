@@ -16,7 +16,11 @@ struct IDEView: View {
     @ObservedObject var project: Project
     @EnvironmentObject var store: ProjectStore
     @State private var sidebarTab: SidebarTab? = .explorer
+    #if DEBUG
+    @State private var showPDF = ProcessInfo.processInfo.environment["TEXPAD_SHOW_PDF"] != nil
+    #else
     @State private var showPDF = false
+    #endif
     @State private var showBottom = false
     @State private var bottomTab: BottomTab = .problems
     @State private var palette: PaletteMode?

@@ -14,6 +14,7 @@ A free, offline LaTeX IDE for iPad. It compiles on the device — no server, no 
 - Problems panel with click-to-jump, inline squiggles and gutter markers.
 - Autocomplete: commands, environments (auto `\end`), `\usepackage`, `\documentclass`, `\cite` (from `.bib`), `\ref`/`\eqref` (from `\label`), `\input`/`\includegraphics`/`\bibliography` paths, math symbols, TikZ libraries.
 - Outline, project-wide search/replace, snippet and symbol palette, extra-key bar above the soft keyboard.
+- PDF preview with page controls, thumbnails and outline sidebar, fit width/page, single/continuous/two-page layout, dark PDF mode, find in PDF, print, save to Files, and a remembered position per project (the last build's PDF is shown when you reopen a project).
 - Best-effort PDF ↔ source jumps (double-tap text in the PDF; "To PDF" button) based on text matching.
 
 ## Limitations

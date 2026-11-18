@@ -62,6 +62,8 @@ final class Project: ObservableObject {
         rebuildIndex()
         loadPackageData()
         if let main = resolveMain() { open(main) }
+        // Show the previous build's PDF right away (it lives in the project's output folder).
+        if let u = saveBuildOutput(), let d = try? Data(contentsOf: u), d.count < 200_000_000 { pdf = d }
         Task { _ = await engine.prepare() }
     }
 

@@ -11,6 +11,7 @@ xcodebuild -project TexPad.xcodeproj -scheme TexPad -sdk iphonesimulator -destin
 xcrun simctl boot "$DEV" 2>/dev/null; open -a Simulator
 xcrun simctl terminate "$DEV" $BID 2>/dev/null
 xcrun simctl install "$DEV" build/Build/Products/Debug-iphonesimulator/TexPad.app
+[ -n "$SHOW_PDF" ] && export SIMCTL_CHILD_TEXPAD_SHOW_PDF=1
 [ -n "$EDITOR_JS" ] && export SIMCTL_CHILD_TEXPAD_EDITOR_JS="$EDITOR_JS"
 export SIMCTL_CHILD_TEXPAD_RESET_SAMPLE=1
 [ -n "$1" ] && export SIMCTL_CHILD_TEXPAD_OPEN_SAMPLE="$1" SIMCTL_CHILD_TEXPAD_BUILD=1
