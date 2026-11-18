@@ -1,6 +1,6 @@
 *.xcodeproj
 texlive/
-build/
+/build/
 .DS_Store
 Config/Local.xcconfig
 *.xcuserstate
