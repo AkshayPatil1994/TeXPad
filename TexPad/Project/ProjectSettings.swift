@@ -8,6 +8,20 @@ struct ProjectSettings: Codable, Equatable {
     var mainFile: String?
     var outputDir: String = "build"
     var autoBuild: Bool = true
+    var activeRecipe: String?
+    var recipes: [BuildRecipe] = []
+
+    init() {}
+
+    /// Tolerant decoding: older files (or hand-edited ones) may lack newer keys.
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        mainFile = try c.decodeIfPresent(String.self, forKey: .mainFile)
+        outputDir = try c.decodeIfPresent(String.self, forKey: .outputDir) ?? "build"
+        autoBuild = try c.decodeIfPresent(Bool.self, forKey: .autoBuild) ?? true
+        activeRecipe = try c.decodeIfPresent(String.self, forKey: .activeRecipe)
+        recipes = (try? c.decodeIfPresent([BuildRecipe].self, forKey: .recipes)) ?? []
+    }
 
     static let fileName = ".ipadtex.json"
 

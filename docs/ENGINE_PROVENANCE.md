@@ -14,6 +14,8 @@ SwiftLaTeX project, release `v20022022` (`20-02-2022.zip`), https://github.com/S
 
 1. `https://texlive2.swiftlatex.com/` → `tex://app/tl/` (files come from the app bundle, not a remote server).
 2. `status===301` → `status===404` (our scheme handler answers 404 for missing files).
+3. `compileLaTeXRoutine(opts)`: BibTeX is skipped when `opts.skipBibtex`, and reading the PDF is skipped when `opts.produce === false` (build recipes run LaTeX and BibTeX as separate steps).
+4. New `compilebibtex` message (`compileBibtexRoutine`): runs `_compileBibtex()` on its own; status 0 or 1 counts as success.
 
 ## Rebuilding from source
 

@@ -4,14 +4,6 @@
 import Foundation
 import WebKit
 
-struct CompileResult {
-    var ok: Bool
-    var log: String
-    var pdf: Data?
-    var ms: Int
-    var passes: Int = 1
-}
-
 /// Hosts the pdfTeX WebAssembly worker in an off-screen WKWebView.
 @MainActor
 final class TeXEngine: NSObject, ObservableObject {
@@ -93,7 +85,7 @@ final class TeXEngine: NSObject, ObservableObject {
     /// Builds pdflatex.fmt once (on first launch) from the bundled TeX tree.
     func ensureFormat() async throws -> String? {
         if FileManager.default.fileExists(atPath: fmtURL.path) { return nil }
-        let r = try await webView.callAsyncJavaScript("return await window.tex.compileFormat()", contentWorld: .page)
+        let r = try await webView.callAsyncJavaScript("return await window.tex.run({engine: 'pdftex', op: 'format'})", contentWorld: .page)
         guard let d = r as? [String: Any], d["ok"] as? Bool == true, let b64 = d["fmt"] as? String,
               let data = Data(base64Encoded: b64) else {
             return (r as? [String: Any])?["log"] as? String ?? "format build failed"
@@ -102,25 +94,21 @@ final class TeXEngine: NSObject, ObservableObject {
         return nil
     }
 
-    /// Full multi-pass build (LaTeX, BibTeX, reruns). `files` are project-relative paths -> contents;
-    /// pass only changed files unless `reset` is true (engine FS is wiped first).
-    func build(files: [String: Data], main: String, reset: Bool, maxPasses: Int = 3) async throws -> CompileResult {
+    /// Runs one build step in the given engine. `files` (and `reset`) are only needed on the first step that uses the engine.
+    func run(engine kind: EngineKind, op: String, main: String, files: [String: Data], reset: Bool, produce: Bool) async throws -> StepResult {
         var dirs = Set<String>()
         for name in files.keys {
             var acc = ""
             for c in name.split(separator: "/").dropLast() { acc += (acc.isEmpty ? "" : "/") + c; dirs.insert(acc) }
         }
-        let b64 = files.mapValues { $0.base64EncodedString() }
-        let r = try await webView.callAsyncJavaScript(
-            "return await window.tex.build(files, dirs, main, reset, maxPasses)",
-            arguments: ["files": b64, "dirs": dirs.sorted(), "main": main, "reset": reset, "maxPasses": maxPasses],
-            contentWorld: .page)
-        guard let d = r as? [String: Any] else { return CompileResult(ok: false, log: "bad result", pdf: nil, ms: 0, passes: 0) }
-        return CompileResult(ok: d["ok"] as? Bool ?? false,
-                             log: d["log"] as? String ?? "",
-                             pdf: (d["pdf"] as? String).flatMap { Data(base64Encoded: $0) },
-                             ms: d["ms"] as? Int ?? 0,
-                             passes: d["passes"] as? Int ?? 1)
+        let spec: [String: Any] = [
+            "engine": kind.rawValue, "op": op, "main": main, "reset": reset, "produce": produce,
+            "files": files.mapValues { $0.base64EncodedString() }, "dirs": dirs.sorted(),
+        ]
+        let r = try await webView.callAsyncJavaScript("return await window.tex.run(spec)", arguments: ["spec": spec], contentWorld: .page)
+        guard let d = r as? [String: Any] else { return StepResult(ok: false, log: "bad result from engine", pdf: nil, ms: 0) }
+        return StepResult(ok: d["ok"] as? Bool ?? false, log: d["log"] as? String ?? "",
+                          pdf: (d["pdf"] as? String).flatMap { Data(base64Encoded: $0) }, ms: d["ms"] as? Int ?? 0)
     }
 }
 

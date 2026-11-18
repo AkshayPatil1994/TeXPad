@@ -30,6 +30,9 @@ struct SettingsView: View {
                     Toggle("Build automatically after saving", isOn: $autoBuild)
                 }
                 Section("Project: \(project.name)") {
+                    NavigationLink { RecipeEditorView(project: project) } label: {
+                        HStack { Text("Build recipe"); Spacer(); Text(project.settings.activeRecipeResolved.name).foregroundStyle(.secondary).lineLimit(1) }
+                    }
                     Picker("Main file", selection: $main) {
                         Text("Automatic").tag("")
                         ForEach(texFiles, id: \.self) { Text($0).tag($0) }

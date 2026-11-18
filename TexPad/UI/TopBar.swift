@@ -23,6 +23,16 @@ struct TopBar: View {
                     .padding(.horizontal, 10).padding(.vertical, 5).background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
             }
             buildButton
+            Menu {
+                ForEach(project.settings.allRecipes) { r in
+                    Button { project.setActiveRecipe(r.id) } label: {
+                        if r.id == project.settings.activeRecipeResolved.id { Label(r.name, systemImage: "checkmark") } else { Text(r.name) }
+                    }
+                }
+                Divider()
+                Button { showSettings = true } label: { Label("Edit Recipes…", systemImage: "slider.horizontal.3") }
+            } label: { Image(systemName: "list.bullet.rectangle") }
+            .accessibilityLabel("Build recipe")
             Button { showBottom.toggle() } label: {
                 Image(systemName: "exclamationmark.triangle")
                     .symbolVariant(project.errorCount > 0 ? .fill : .none)
@@ -81,7 +91,7 @@ struct StatusBar: View {
             switch project.buildState {
             case .idle: Label("Ready", systemImage: "checkmark.circle")
             case .preparing: Label("Preparing engine…", systemImage: "gearshape")
-            case .building: Label("Building…", systemImage: "hammer")
+            case .building: Label("Building \(project.buildStep ?? "")…", systemImage: "hammer")
             case .succeeded(let ms, let passes): Label("Built in \(ms) ms (\(passes) pass\(passes == 1 ? "" : "es"))", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
             case .failed: Label("Build failed", systemImage: "xmark.octagon.fill").foregroundStyle(.red)
             }

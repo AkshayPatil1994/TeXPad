@@ -13,7 +13,7 @@ xcrun simctl terminate "$DEV" $BID 2>/dev/null
 xcrun simctl install "$DEV" build/Build/Products/Debug-iphonesimulator/TexPad.app
 CONT=$(xcrun simctl get_app_container "$DEV" $BID data)
 rm -f "$CONT/Library/Caches/texcache/tex-misses.txt" /tmp/ipadtex-autotest.pdf
-export SIMCTL_CHILD_IPADTEX_VERBOSE="$VERBOSE" SIMCTL_CHILD_IPADTEX_AUTOTEST="$PROJ" SIMCTL_CHILD_IPADTEX_MAIN="$MAIN"
+export SIMCTL_CHILD_IPADTEX_RECIPE="$RECIPE" SIMCTL_CHILD_IPADTEX_VERBOSE="$VERBOSE" SIMCTL_CHILD_IPADTEX_AUTOTEST="$PROJ" SIMCTL_CHILD_IPADTEX_MAIN="$MAIN"
 OUT=$(mktemp)
 xcrun simctl launch --console-pty "$DEV" $BID > "$OUT" 2>&1 &
 P=$!

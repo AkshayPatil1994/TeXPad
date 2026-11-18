@@ -1,7 +1,11 @@
-// Bridge between Swift (callAsyncJavaScript) and the SwiftLaTeX pdfTeX worker.
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 TexPad contributors
+//
+// Bridge between Swift (callAsyncJavaScript) and the SwiftLaTeX WebAssembly workers.
+// Swift decides *what* to run (see RecipeRunner); this file only runs one step at a time.
 (function () {
-  let worker = null;
-  let pending = null; // {cmd, resolve}
+  const SCRIPTS = { pdftex: "swiftlatexpdftex.js" };
+  const workers = {};   // engine name -> { worker, pending }
 
   function b64ToBytes(b64) {
     const bin = atob(b64);
@@ -16,60 +20,71 @@
       s += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
     return btoa(s);
   }
-  function request(msg, waitCmd) {
+
+  function startWorker(name) {
+    return new Promise((resolve, reject) => {
+      const script = SCRIPTS[name];
+      if (!script) return reject(new Error("unknown engine " + name));
+      const w = new Worker(script);
+      const entry = { worker: w, pending: null };
+      w.onerror = (e) => reject(new Error("worker error: " + (e.message || e)));
+      w.onmessage = (ev) => {
+        if (ev.data.result === "ok" && !ev.data.cmd) {
+          w.onmessage = (e) => {
+            const d = e.data;
+            if (entry.pending && d.cmd === entry.pending.cmd) {
+              const p = entry.pending; entry.pending = null; p.resolve(d);
+            }
+          };
+          workers[name] = entry;
+          resolve(entry);
+        } else reject(new Error("engine init failed"));
+      };
+    });
+  }
+
+  async function engine(name) { return workers[name] || startWorker(name); }
+
+  function request(entry, msg, waitCmd) {
     return new Promise((resolve) => {
-      pending = { cmd: waitCmd, resolve };
-      worker.postMessage(msg);
+      entry.pending = { cmd: waitCmd, resolve };
+      entry.worker.postMessage(msg);
     });
   }
 
   window.tex = {
-    async load() {
-      await new Promise((resolve, reject) => {
-        worker = new Worker("swiftlatexpdftex.js");
-        worker.onerror = (e) => reject(new Error("worker error: " + (e.message || e)));
-        worker.onmessage = (ev) => {
-          if (ev.data.result === "ok" && !ev.data.cmd) {
-            worker.onmessage = (e) => {
-              const d = e.data;
-              if (pending && d.cmd === pending.cmd) {
-                const p = pending; pending = null; p.resolve(d);
-              }
-            };
-            resolve();
-          } else reject(new Error("engine init failed"));
-        };
-      });
-      return "loaded";
-    },
-    // Full build. files: { "path/name.tex": base64 } (only changed files unless reset),
-    // dirs: ["sub"], main: "main.tex", reset: wipe engine FS first, maxPasses: rerun cap.
-    async build(files, dirs, main, reset, maxPasses) {
-      if (reset) worker.postMessage({ cmd: "flushcache" });
-      for (const d of dirs) await request({ cmd: "mkdir", url: d }, "mkdir");
-      for (const [name, b64] of Object.entries(files))
-        await request({ cmd: "writefile", url: name, src: b64ToBytes(b64) }, "writefile");
-      worker.postMessage({ cmd: "setmainfile", url: main });
+    async load() { await engine("pdftex"); return "loaded"; },
+
+    /**
+     * Runs one build step.
+     * spec: { engine: "pdftex", op: "latex" | "bibtex" | "format", main: "main.tex",
+     *         files: {path: base64}, dirs: [..], reset: bool, produce: bool }
+     * `files`/`dirs` are only sent on the first step that uses an engine; `reset` wipes that engine's file system first.
+     */
+    async run(spec) {
+      const e = await engine(spec.engine);
       const t0 = performance.now();
-      let r = null, passes = 0, logs = [];
-      const needRerun = (log) => /Rerun to get|Label\(s\) may have changed|Please \(re\)run/.test(log) ||
-        (passes === 1 && /Citation `[^']*' on page \d+ undefined|There were undefined (citations|references)|Reference `[^']*' on page \d+ undefined/.test(log));
-      do {
-        r = await request({ cmd: "compilelatex" }, "compile");
-        passes++;
-        logs.push(r.log);
-      } while (r.result === "ok" && passes < (maxPasses || 3) && needRerun(r.log));
+      if (spec.reset) e.worker.postMessage({ cmd: "flushcache" });
+      for (const d of spec.dirs || []) await request(e, { cmd: "mkdir", url: d }, "mkdir");
+      for (const [name, b64] of Object.entries(spec.files || {}))
+        await request(e, { cmd: "writefile", url: name, src: b64ToBytes(b64) }, "writefile");
+      if (spec.main) e.worker.postMessage({ cmd: "setmainfile", url: spec.main });
+
+      let r;
+      if (spec.op === "latex") {
+        r = await request(e, { cmd: "compilelatex", skipBibtex: true, produce: !!spec.produce }, "compile");
+      } else if (spec.op === "bibtex") {
+        r = await request(e, { cmd: "compilebibtex" }, "compile");
+      } else if (spec.op === "format") {
+        r = await request(e, { cmd: "compileformat" }, "compile");
+      } else {
+        throw new Error("unknown op " + spec.op);
+      }
+      const ok = r.result === "ok";
       return {
-        ok: r.result === "ok", status: r.status, log: r.log, passes,
-        ms: Math.round(performance.now() - t0),
-        pdf: r.result === "ok" ? bytesToB64(new Uint8Array(r.pdf)) : null,
-      };
-    },
-    async compileFormat(files, dirs) {
-      const r = await request({ cmd: "compileformat" }, "compile");
-      return {
-        ok: r.result === "ok", status: r.status, log: r.log,
-        fmt: r.result === "ok" ? bytesToB64(new Uint8Array(r.pdf)) : null,
+        ok, status: r.status, log: r.log, ms: Math.round(performance.now() - t0),
+        pdf: ok && r.pdf && spec.op === "latex" ? bytesToB64(new Uint8Array(r.pdf)) : null,
+        fmt: ok && r.pdf && spec.op === "format" ? bytesToB64(new Uint8Array(r.pdf)) : null,
       };
     },
   };

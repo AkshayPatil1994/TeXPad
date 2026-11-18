@@ -28,6 +28,7 @@ final class Project: ObservableObject {
     @Published var settings: ProjectSettings
     @Published var diagnostics: [Diagnostic] = []
     @Published var buildLog = ""
+    @Published var buildStep: String?
     @Published var buildState: BuildState = .idle
     @Published var pdf: Data?
     @Published var index = ProjectIndex()
@@ -39,8 +40,8 @@ final class Project: ObservableObject {
 
     private var buffers: [String: String] = [:]     // text of open documents (source of truth while open)
     private var textCache: [String: String] = [:]   // text of all small text files, for indexing/search
-    private var lastSent: [String: FileStamp] = [:]
-    private var lastMain: String?
+    /// What each engine's file system already holds (so unchanged files aren't sent again).
+    private var syncState: [EngineKind: (sent: [String: FileStamp], main: String?)] = [:]
     private var saveTask: Task<Void, Never>?
     private var buildTask: Task<Void, Never>?
     private var indexTask: Task<Void, Never>?
@@ -258,6 +259,14 @@ final class Project: ObservableObject {
         reloadTree(); loadAllText(); scheduleIndex()
     }
 
+    func setActiveRecipe(_ id: String) { settings.activeRecipe = id; settings.save(to: root); syncState = [:] }
+
+    func saveRecipes(_ recipes: [BuildRecipe]) {
+        settings.recipes = recipes.compactMap { $0.validated() }
+        if !settings.allRecipes.contains(where: { $0.id == settings.activeRecipe }) { settings.activeRecipe = nil }
+        settings.save(to: root)
+    }
+
     func setMainFile(_ path: String?) { settings.mainFile = path; settings.save(to: root) }
 
     /// Pick up edits made outside the app (Files, iCloud) when the app returns to the foreground.
@@ -371,11 +380,13 @@ final class Project: ObservableObject {
     private func runBuild() async {
         for p in dirty { save(p) }
         guard let main = resolveMain() else { toast = "No root .tex file (with \\documentclass) found"; buildState = .failed; return }
+        let recipe = settings.activeRecipeResolved
         buildState = .preparing
+        buildStep = nil
         guard await engine.prepare() else { buildState = .failed; buildLog = "Engine failed to start"; return }
         buildState = .building
 
-        // Collect files that changed since the last build.
+        // Snapshot the project's files (changed ones are sent to each engine that the recipe uses).
         let fm = FileManager.default
         var current: [String: FileStamp] = [:]
         if let en = fm.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey, .fileSizeKey],
@@ -389,43 +400,66 @@ final class Project: ObservableObject {
                 current[rel] = FileStamp(mtime: v.contentModificationDate?.timeIntervalSince1970 ?? 0, size: size)
             }
         }
-        let removed = Set(lastSent.keys).subtracting(current.keys)
-        let reset = !removed.isEmpty || lastMain != main
-        let toSend = current.filter { reset || lastSent[$0.key] != $0.value }.keys
-        var payload: [String: Data] = [:]
-        for rel in toSend { if let d = try? Data(contentsOf: url(rel)) { payload[rel] = d } }
+        var pending: [EngineKind: (files: [String: Data], reset: Bool)] = [:]
+        var newState = syncState
+        for kind in Set(recipe.steps.compactMap { $0.tool.engine }) {
+            let st = syncState[kind]
+            let removed = Set(st?.sent.keys ?? [:].keys).subtracting(current.keys)
+            let reset = st == nil || !removed.isEmpty || st?.main != main
+            var payload: [String: Data] = [:]
+            for (rel, stamp) in current where reset || st?.sent[rel] != stamp { if let d = try? Data(contentsOf: url(rel)) { payload[rel] = d } }
+            pending[kind] = (payload, reset)
+            newState[kind] = (current, main)
+        }
 
         engine.handler.clearMisses()
+        let executor = EngineStepExecutor(engine: engine, pending: pending, timeout: Self.buildTimeout)
+        var runner = RecipeRunner(executor: executor)
+        runner.onStep = { [weak self] i, n, tool in self?.buildStep = n > 1 ? "\(i)/\(n) \(tool.title)" : tool.title }
         do {
-            let r = try await withTimeout(seconds: Self.buildTimeout) { [engine] in
-                try await engine.build(files: payload, main: main, reset: reset)
-            }
-            lastSent = current; lastMain = main
-            buildLog = r.log.count > 200_000 ? String(r.log.prefix(200_000)) + "\n… (log truncated)" : r.log
-            diagnostics = LogParser.parse(r.log)
-            if r.ok, let data = r.pdf {
+            let outcome = try await runner.run(recipe, main: main)
+            syncState = newState
+            let log = outcome.combinedLog
+            buildLog = log.count > 200_000 ? String(log.prefix(200_000)) + "\n… (log truncated)" : log
+            diagnostics = Self.diagnostics(from: outcome)
+            if outcome.ok, let data = outcome.pdf {
                 pdf = data
-                buildState = .succeeded(ms: r.ms, passes: r.passes)
-                writeOutputs(main: main, pdf: data, log: r.log)
+                buildState = .succeeded(ms: outcome.totalMs, passes: outcome.latexRuns)
+                writeOutputs(main: main, pdf: data, log: log)
             } else {
                 buildState = .failed
                 diagnostics += missingFileHints(engine.handler.takeMisses())
                 if diagnostics.allSatisfy({ $0.severity != .error }) {
-                    diagnostics.insert(Diagnostic(severity: .error, message: "Build failed (status \(r.log.isEmpty ? "no log" : "see log"))", file: main, line: nil, context: nil), at: 0)
+                    diagnostics.insert(Diagnostic(severity: .error, message: "Build failed (see the build log)", file: main, line: nil, context: nil), at: 0)
                 }
             }
+            buildStep = nil
             pushAllDiagnostics()
         } catch {
             buildState = .failed
+            buildStep = nil
             let timedOut = error is BuildTimeout
             // A hung or crashed engine (infinite macro loop, out of memory) is thrown away and restarted.
             engine.restart()
-            lastSent = [:]; lastMain = nil
-            let msg = timedOut ? "Build timed out after \(Int(Self.buildTimeout)) s (an infinite loop or a very large document?). The engine was restarted."
+            syncState = [:]
+            let msg = timedOut ? "A build step timed out after \(Int(Self.buildTimeout)) s (an infinite loop or a very large document?). The engine was restarted."
                                : "The engine stopped unexpectedly (possibly out of memory) and was restarted."
             buildLog = msg + "\n\(error)"
             diagnostics = [Diagnostic(severity: .error, message: msg, file: nil, line: nil, context: nil)]
         }
+    }
+
+    /// Diagnostics for the final state of the build: the last LaTeX pass (earlier passes only show stale "undefined reference" noise),
+    /// any failing step, and BibTeX problems.
+    static func diagnostics(from outcome: RecipeOutcome) -> [Diagnostic] {
+        var out: [Diagnostic] = []
+        if let last = outcome.entries.last(where: { $0.tool.isLatex }) { out += LogParser.parse(last.log) }
+        for e in outcome.entries where e.tool == .bibtex {
+            for line in e.log.components(separatedBy: "\n") where line.hasPrefix("Warning--") || line.hasPrefix("I couldn't open") || line.hasPrefix("I found no") {
+                out.append(Diagnostic(severity: .warning, message: "BibTeX: " + line, file: nil, line: nil, context: nil))
+            }
+        }
+        return out
     }
 
     /// Turns the engine's "file not found" requests into hints about how to supply the file.

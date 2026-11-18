@@ -23,12 +23,14 @@ enum AutoTest {
         }
         let main = ProcessInfo.processInfo.environment["IPADTEX_MAIN"] ?? "main.tex"
         do {
-            let r = try await engine.build(files: files, main: main, reset: true)
-            print("[autotest] ok=\(r.ok) ms=\(r.ms) passes=\(r.passes) pdf=\(r.pdf?.count ?? 0)")
-            if let pdf = r.pdf { try? pdf.write(to: URL(fileURLWithPath: "/tmp/ipadtex-autotest.pdf")) }
-            let diags = LogParser.parse(r.log)
-            for d in diags { print("[autotest] \(d.severity) \(d.file ?? "?"):\(d.line.map(String.init) ?? "?") \(d.message)") }
-            if !r.ok || ProcessInfo.processInfo.environment["IPADTEX_VERBOSE"] != nil { print("[autotest] LOG\n\(r.log)") }
+            let id = ProcessInfo.processInfo.environment["IPADTEX_RECIPE"] ?? BuildRecipe.default.id
+            let recipe = BuildRecipe.builtIns.first { $0.id == id } ?? .default
+            let exec = EngineStepExecutor(engine: engine, pending: [.pdftex: (files, true)], timeout: 120)
+            let out = try await RecipeRunner(executor: exec).run(recipe, main: main)
+            print("[autotest] ok=\(out.ok) ms=\(out.totalMs) passes=\(out.latexRuns) pdf=\(out.pdf?.count ?? 0) recipe=\(recipe.id)")
+            if let pdf = out.pdf { try? pdf.write(to: URL(fileURLWithPath: "/tmp/ipadtex-autotest.pdf")) }
+            for d in Project.diagnostics(from: out) { print("[autotest] \(d.severity) \(d.file ?? "?"):\(d.line.map(String.init) ?? "?") \(d.message)") }
+            if !out.ok || ProcessInfo.processInfo.environment["IPADTEX_VERBOSE"] != nil { print("[autotest] LOG\n\(out.combinedLog)") }
         } catch { print("[autotest] error \(error)") }
         print("[autotest] done")
     }
