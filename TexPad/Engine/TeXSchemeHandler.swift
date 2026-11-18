@@ -11,6 +11,8 @@ final class TeXSchemeHandler: NSObject, WKURLSchemeHandler {
     let cacheDir: URL
     private let webDir: URL?
     private let texDir: URL?
+    private let fontsDir: URL?
+    private(set) var fontIndex: FontIndex
     private let missLogURL: URL
     /// User-supplied TeX files (Files app > TexPad > TeXExtras), searched recursively by file name.
     let extrasDir: URL
@@ -21,8 +23,10 @@ final class TeXSchemeHandler: NSObject, WKURLSchemeHandler {
         self.cacheDir = cacheDir
         self.webDir = Bundle.main.url(forResource: "web", withExtension: nil)
         self.texDir = Bundle.main.url(forResource: "texlive", withExtension: nil)
+        self.fontsDir = Bundle.main.url(forResource: "fonts", withExtension: nil)
         self.missLogURL = cacheDir.appendingPathComponent("tex-misses.txt")
         self.extrasDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("TeXExtras")
+        self.fontIndex = FontIndex(directories: [])
         super.init()
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
         prepareExtras()
@@ -54,6 +58,9 @@ final class TeXSchemeHandler: NSObject, WKURLSchemeHandler {
             }
         }
         extrasIndex = idx
+        fontIndex.rescan([fontsDir, extrasDir].compactMap { $0 })
+        // XeTeX reads its font list through the normal TeX file lookup; keep a generated copy in the cache dir.
+        try? fontIndex.fontListText().write(to: cacheDir.appendingPathComponent("xetexfontlist.txt"), atomically: true, encoding: .utf8)
         return idx.count
     }
     var extrasCount: Int { extrasIndex.count }
@@ -67,8 +74,17 @@ final class TeXSchemeHandler: NSObject, WKURLSchemeHandler {
         var fileURL: URL?
         var fileID = ""
 
-        if path.hasPrefix("/tl/pdftex/") {
-            let parts = path.dropFirst("/tl/pdftex/".count).split(separator: "/", maxSplits: 1).map(String.init)
+        if path == "/tl/fontlist.json" {
+            // names of the bundled/extra fonts, mounted lazily under /fonts in the XeTeX and dvipdfmx workers
+            let json = (try? JSONSerialization.data(withJSONObject: fontIndex.fileNames)) ?? Data("[]".utf8)
+            respond(task, url: url, status: 200, headers: ["Content-Type": "application/json", "Content-Length": "\(json.count)"], body: json)
+            return
+        } else if path.hasPrefix("/tl/fontfile/") {
+            let name = String(path.dropFirst("/tl/fontfile/".count))
+            if PathSafety.isSafeName(name), let f = fontIndex.file(named: name) { fileURL = f }
+        } else if path.hasPrefix("/tl/pdftex/") || path.hasPrefix("/tl/xetex/") {
+            let prefixLength = path.hasPrefix("/tl/pdftex/") ? "/tl/pdftex/".count : "/tl/xetex/".count
+            let parts = path.dropFirst(prefixLength).split(separator: "/", maxSplits: 1).map(String.init)
             if parts.count == 2, let fmt = Int(parts[0]), PathSafety.isSafeTeXName(parts[1]) {
                 let name = parts[1]
                 fileID = parts[0] + "_" + name
@@ -92,6 +108,7 @@ final class TeXSchemeHandler: NSObject, WKURLSchemeHandler {
                        "Content-Length": "\(data.count)",
                        "X-Content-Type-Options": "nosniff"]
         headers["fileid"] = fileURL.lastPathComponent
+        headers["fontid"] = fileURL.lastPathComponent
         respond(task, url: url, status: 200, headers: headers, body: data)
     }
 
@@ -107,7 +124,7 @@ final class TeXSchemeHandler: NSObject, WKURLSchemeHandler {
         case 32: return [".pfb", ""]
         case 33: return [".vf", ""]
         case 44: return [".enc", ""]
-        default: return ["", ".tex", ".sty", ".cls", ".def", ".cfg", ".clo", ".fd", ".ltx", ".tfm", ".pfb", ".vf", ".enc", ".map"]
+        default: return ["", ".tex", ".sty", ".cls", ".def", ".cfg", ".clo", ".fd", ".ltx", ".tfm", ".pfb", ".vf", ".enc", ".map", ".ini", ".otf", ".ttf"]
         }
     }
 
@@ -126,6 +143,8 @@ final class TeXSchemeHandler: NSObject, WKURLSchemeHandler {
                 for e in exts { if let u = extrasIndex[name + e], PathSafety.isInside(u, base: extrasDir) { return u } }
             }
         }
+        // fonts requested by file name (kpathsea "opentype fonts" / "truetype fonts")
+        for e in ["", ".otf", ".ttf"] { if let u = fontIndex.file(named: name + e) { return u } }
         return nil
     }
 
@@ -133,7 +152,7 @@ final class TeXSchemeHandler: NSObject, WKURLSchemeHandler {
 
     private func respond(_ task: WKURLSchemeTask, url: URL, status: Int, headers: [String: String], body: Data) {
         var h = headers
-        h["Access-Control-Expose-Headers"] = "fileid"
+        h["Access-Control-Expose-Headers"] = "fileid, fontid"
         let resp = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: h)!
         task.didReceive(resp)
         task.didReceive(body)
@@ -145,6 +164,8 @@ final class TeXSchemeHandler: NSObject, WKURLSchemeHandler {
         case "html": return "text/html"
         case "js": return "text/javascript"
         case "wasm": return "application/wasm"
+        case "otf": return "font/otf"
+        case "ttf": return "font/ttf"
         default: return "application/octet-stream"
         }
     }

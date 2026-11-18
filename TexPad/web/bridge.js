@@ -4,8 +4,11 @@
 // Bridge between Swift (callAsyncJavaScript) and the SwiftLaTeX WebAssembly workers.
 // Swift decides *what* to run (see RecipeRunner); this file only runs one step at a time.
 (function () {
-  const SCRIPTS = { pdftex: "swiftlatexpdftex.js" };
+  const SCRIPTS = { pdftex: "swiftlatexpdftex.js", xetex: "swiftlatexxetex.js", dvipdfm: "swiftlatexdvipdfm.js" };
   const workers = {};   // engine name -> { worker, pending }
+  // XeTeX writes .xdv; a second worker (dvipdfmx) turns it into PDF and needs the project's images, so we remember
+  // the files sent to xetex and forward them to dvipdfm lazily.
+  const xe = { files: {}, dirs: new Set(), written: new Set(), reset: false };
 
   function b64ToBytes(b64) {
     const bin = atob(b64);
@@ -64,10 +67,18 @@
     async run(spec) {
       const e = await engine(spec.engine);
       const t0 = performance.now();
-      if (spec.reset) e.worker.postMessage({ cmd: "flushcache" });
-      for (const d of spec.dirs || []) await request(e, { cmd: "mkdir", url: d }, "mkdir");
-      for (const [name, b64] of Object.entries(spec.files || {}))
+      if (spec.reset) {
+        e.worker.postMessage({ cmd: "flushcache" });
+        if (spec.engine === "xetex") { xe.files = {}; xe.dirs = new Set(); xe.written = new Set(); xe.reset = true; }
+      }
+      for (const d of spec.dirs || []) {
+        await request(e, { cmd: "mkdir", url: d }, "mkdir");
+        if (spec.engine === "xetex") xe.dirs.add(d);
+      }
+      for (const [name, b64] of Object.entries(spec.files || {})) {
         await request(e, { cmd: "writefile", url: name, src: b64ToBytes(b64) }, "writefile");
+        if (spec.engine === "xetex") { xe.files[name] = b64; xe.written.delete(name); }
+      }
       if (spec.main) e.worker.postMessage({ cmd: "setmainfile", url: spec.main });
 
       let r;
@@ -80,12 +91,31 @@
       } else {
         throw new Error("unknown op " + spec.op);
       }
-      const ok = r.result === "ok";
-      return {
-        ok, status: r.status, log: r.log, ms: Math.round(performance.now() - t0),
-        pdf: ok && r.pdf && spec.op === "latex" ? bytesToB64(new Uint8Array(r.pdf)) : null,
-        fmt: ok && r.pdf && spec.op === "format" ? bytesToB64(new Uint8Array(r.pdf)) : null,
-      };
+      let ok = r.result === "ok", log = r.log, pdf = null, fmt = null;
+      if (ok && r.pdf && spec.op === "format") fmt = bytesToB64(new Uint8Array(r.pdf));
+      if (ok && r.pdf && spec.op === "latex") {
+        if (spec.engine === "xetex") {
+          // .xdv -> .pdf in the dvipdfmx worker
+          const d = await engine("dvipdfm");
+          if (xe.reset) { d.worker.postMessage({ cmd: "flushcache" }); xe.written = new Set(); xe.reset = false; }
+          for (const dir of xe.dirs) await request(d, { cmd: "mkdir", url: dir }, "mkdir");
+          for (const [name, b64] of Object.entries(xe.files)) {
+            if (xe.written.has(name)) continue;
+            await request(d, { cmd: "writefile", url: name, src: b64ToBytes(b64) }, "writefile");
+            xe.written.add(name);
+          }
+          const xdv = spec.main.replace(/\.tex$/, "") + ".xdv";
+          await request(d, { cmd: "writefile", url: xdv, src: new Uint8Array(r.pdf) }, "writefile");
+          d.worker.postMessage({ cmd: "setmainfile", url: spec.main });
+          const r2 = await request(d, { cmd: "compilepdf" }, "compile");
+          ok = r2.result === "ok";
+          log = r.log + "\n--- dvipdfmx ---\n" + r2.log;
+          if (ok && r2.pdf) pdf = bytesToB64(new Uint8Array(r2.pdf));
+        } else {
+          pdf = bytesToB64(new Uint8Array(r.pdf));
+        }
+      }
+      return { ok, status: r.status, log, ms: Math.round(performance.now() - t0), pdf, fmt };
     },
   };
 })();

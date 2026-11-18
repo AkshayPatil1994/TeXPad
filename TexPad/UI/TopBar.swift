@@ -26,7 +26,7 @@ struct TopBar: View {
             Menu {
                 ForEach(project.settings.allRecipes) { r in
                     Button { project.setActiveRecipe(r.id) } label: {
-                        if r.id == project.settings.activeRecipeResolved.id { Label(r.name, systemImage: "checkmark") } else { Text(r.name) }
+                        if r.id == project.effectiveRecipe().id { Label(r.name, systemImage: "checkmark") } else { Text(r.name) }
                     }
                 }
                 Divider()

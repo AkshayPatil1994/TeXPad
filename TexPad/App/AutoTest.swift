@@ -25,7 +25,9 @@ enum AutoTest {
         do {
             let id = ProcessInfo.processInfo.environment["IPADTEX_RECIPE"] ?? BuildRecipe.default.id
             let recipe = BuildRecipe.builtIns.first { $0.id == id } ?? .default
-            let exec = EngineStepExecutor(engine: engine, pending: [.pdftex: (files, true)], timeout: 120)
+            var pending: [EngineKind: (files: [String: Data], reset: Bool)] = [:]
+            for kind in Set(recipe.steps.compactMap { $0.tool.engine }) { pending[kind] = (files, true) }
+            let exec = EngineStepExecutor(engine: engine, pending: pending, timeout: 180)
             let out = try await RecipeRunner(executor: exec).run(recipe, main: main)
             print("[autotest] ok=\(out.ok) ms=\(out.totalMs) passes=\(out.latexRuns) pdf=\(out.pdf?.count ?? 0) recipe=\(recipe.id)")
             if let pdf = out.pdf { try? pdf.write(to: URL(fileURLWithPath: "/tmp/ipadtex-autotest.pdf")) }

@@ -31,7 +31,7 @@ struct SettingsView: View {
                 }
                 Section("Project: \(project.name)") {
                     NavigationLink { RecipeEditorView(project: project) } label: {
-                        HStack { Text("Build recipe"); Spacer(); Text(project.settings.activeRecipeResolved.name).foregroundStyle(.secondary).lineLimit(1) }
+                        HStack { Text("Build recipe"); Spacer(); Text(project.effectiveRecipe().name).foregroundStyle(.secondary).lineLimit(1) }
                     }
                     Picker("Main file", selection: $main) {
                         Text("Automatic").tag("")

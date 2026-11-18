@@ -363,6 +363,13 @@ final class Project: ObservableObject {
 
     var mainName: String? { resolveMain() }
 
+    /// The recipe a build will use: the user's explicit choice, otherwise the root file's `% !TEX program =` comment, otherwise the default.
+    func effectiveRecipe(main: String? = nil) -> BuildRecipe {
+        if settings.activeRecipe != nil, settings.allRecipes.contains(where: { $0.id == settings.activeRecipe }) { return settings.activeRecipeResolved }
+        if let m = main ?? resolveMain(), let t = text(of: m), let p = BuildRecipe.magicProgram(in: t), let r = BuildRecipe.recipe(forProgram: p) { return r }
+        return settings.activeRecipeResolved
+    }
+
     func build() {
         if buildTask != nil { rebuildRequested = true; return }
         buildTask = Task { [weak self] in
@@ -380,7 +387,7 @@ final class Project: ObservableObject {
     private func runBuild() async {
         for p in dirty { save(p) }
         guard let main = resolveMain() else { toast = "No root .tex file (with \\documentclass) found"; buildState = .failed; return }
-        let recipe = settings.activeRecipeResolved
+        let recipe = effectiveRecipe(main: main)
         buildState = .preparing
         buildStep = nil
         guard await engine.prepare() else { buildState = .failed; buildLog = "Engine failed to start"; return }
@@ -429,6 +436,7 @@ final class Project: ObservableObject {
             } else {
                 buildState = .failed
                 diagnostics += missingFileHints(engine.handler.takeMisses())
+                if let hint = Self.engineHint(log: log, recipe: recipe) { diagnostics.append(hint) }
                 if diagnostics.allSatisfy({ $0.severity != .error }) {
                     diagnostics.insert(Diagnostic(severity: .error, message: "Build failed (see the build log)", file: main, line: nil, context: nil), at: 0)
                 }
@@ -460,6 +468,14 @@ final class Project: ObservableObject {
             }
         }
         return out
+    }
+
+    /// When a document needs XeLaTeX but the pdfLaTeX recipe is active, say so instead of leaving the user with a package error.
+    static func engineHint(log: String, recipe: BuildRecipe) -> Diagnostic? {
+        guard !recipe.steps.contains(where: { $0.tool == .xelatex }),
+              log.contains("requires either XeTeX or LuaTeX") || log.contains("requires XeTeX or LuaTeX") || log.contains("requires LuaTeX or XeTeX") else { return nil }
+        return Diagnostic(severity: .info, message: "This document needs XeLaTeX. Choose a XeLaTeX recipe from the recipe menu in the top bar, or add “% !TEX program = xelatex” as the first line of the root file.",
+                          file: nil, line: nil, context: nil)
     }
 
     /// Turns the engine's "file not found" requests into hints about how to supply the file.

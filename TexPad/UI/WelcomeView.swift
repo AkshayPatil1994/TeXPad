@@ -22,6 +22,8 @@ struct WelcomeView: View {
                         .buttonStyle(.bordered).controlSize(.large)
                     Button { store.openSample("Manuscript") } label: { Label("Open Sample Manuscript (many packages)", systemImage: "doc.richtext") }
                         .buttonStyle(.bordered).controlSize(.large)
+                    Button { store.openSample("XeLaTeX") } label: { Label("Open Sample XeLaTeX (fontspec, Unicode)", systemImage: "textformat") }
+                        .buttonStyle(.bordered).controlSize(.large)
                     Button { store.openSample("Broken") } label: { Label("Open Sample With Errors", systemImage: "exclamationmark.triangle") }
                         .buttonStyle(.bordered).controlSize(.large)
                 }

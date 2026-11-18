@@ -1,0 +1,26 @@
+% !TEX program = xelatex
+\documentclass[11pt]{article}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\setmainfont{Libertinus Serif}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{Latin Modern Mono}
+\setmathfont{Latin Modern Math}
+\usepackage[margin=1in]{geometry}
+
+\title{XeLaTeX on the iPad}
+\author{TexPad}
+\begin{document}
+\maketitle
+
+\section{Unicode text}
+Ελληνικά: αβγδε ΑΒΓΔΕ · Русский: привет мир · Français: déjà vu, œuvre, Ça · Deutsch: Größe, Fuß.
+
+{\sffamily Sans serif sample: TeX Gyre Heros.} \texttt{Monospace sample: Latin Modern Mono.}
+
+\section{Math with unicode-math}
+Euler: $e^{iπ} + 1 = 0$, and $\displaystyle ∑_{k=1}^{n} k = \frac{n(n+1)}{2}$.
+\[ ∫_0^∞ e^{-x^2}\,dx = \frac{\sqrt{π}}{2} \]
+
+\textbf{Bold}, \textit{italic}, \textsc{Small Caps}, and \textbf{\textit{bold italic}} in Libertinus Serif.
+\end{document}

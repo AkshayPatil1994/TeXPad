@@ -7,3 +7,4 @@ Config/Local.xcconfig
 xcuserdata/
 node_modules/
 build-rel/
+fonts/

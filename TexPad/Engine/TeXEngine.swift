@@ -18,7 +18,10 @@ final class TeXEngine: NSObject, ObservableObject {
     static var cacheDir: URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("texcache")
     }
-    private var fmtURL: URL { handler.cacheDir.appendingPathComponent("swiftlatexpdftex.fmt") }
+    private func fmtURL(for kind: EngineKind) -> URL { handler.cacheDir.appendingPathComponent(kind.formatFileName) }
+    private var preparedKinds: Set<EngineKind> = []
+    /// The engine whose format is being built (first use only), for status text.
+    @Published private(set) var preparingKind: EngineKind?
 
     override init() {
         handler = TeXSchemeHandler(cacheDir: TeXEngine.cacheDir)
@@ -47,6 +50,7 @@ final class TeXEngine: NSObject, ObservableObject {
         webView.navigationDelegate = self
         loaded = false
         prepareTask = nil
+        preparedKinds = []
         status = .idle
     }
 
@@ -59,7 +63,7 @@ final class TeXEngine: NSObject, ObservableObject {
                 status = .loading
                 try await load()
                 status = .buildingFormat
-                if let err = try await ensureFormat() { status = .failed(err); return false }
+                if let err = try await ensureFormat(.pdftex) { status = .failed(err); return false }
                 status = .ready
                 return true
             } catch { status = .failed("\(error)"); return false }
@@ -68,6 +72,20 @@ final class TeXEngine: NSObject, ObservableObject {
         let ok = await t.value
         if !ok { prepareTask = nil }   // allow retry
         return ok
+    }
+
+    /// Makes sure `kind` is usable: base engine started and, on first use, its format built (XeLaTeX builds lazily).
+    func prepare(_ kind: EngineKind) async -> Bool {
+        guard await prepare() else { return false }
+        if kind == .pdftex || preparedKinds.contains(kind) { return true }
+        do {
+            preparingKind = kind; status = .buildingFormat
+            defer { preparingKind = nil }
+            if let err = try await ensureFormat(kind) { status = .failed(err); return false }
+            status = .ready
+            preparedKinds.insert(kind)
+            return true
+        } catch { status = .failed("\(error)"); return false }
     }
 
     func load() async throws {
@@ -82,15 +100,16 @@ final class TeXEngine: NSObject, ObservableObject {
         loaded = true
     }
 
-    /// Builds pdflatex.fmt once (on first launch) from the bundled TeX tree.
-    func ensureFormat() async throws -> String? {
-        if FileManager.default.fileExists(atPath: fmtURL.path) { return nil }
-        let r = try await webView.callAsyncJavaScript("return await window.tex.run({engine: 'pdftex', op: 'format'})", contentWorld: .page)
+    /// Builds the LaTeX format for an engine once (cached) from the bundled TeX tree.
+    func ensureFormat(_ kind: EngineKind) async throws -> String? {
+        let target = fmtURL(for: kind)
+        if FileManager.default.fileExists(atPath: target.path) { return nil }
+        let r = try await webView.callAsyncJavaScript("return await window.tex.run({engine: kind, op: 'format'})", arguments: ["kind": kind.rawValue], contentWorld: .page)
         guard let d = r as? [String: Any], d["ok"] as? Bool == true, let b64 = d["fmt"] as? String,
               let data = Data(base64Encoded: b64) else {
             return (r as? [String: Any])?["log"] as? String ?? "format build failed"
         }
-        try data.write(to: fmtURL)
+        try data.write(to: target)
         return nil
     }
 

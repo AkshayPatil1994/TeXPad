@@ -30,6 +30,10 @@ targets:
       - path: Samples
         type: folder
         buildPhase: resources
+      - path: fonts
+        type: folder
+        buildPhase: resources
+        optional: true
       - path: texlive
         type: folder
         buildPhase: resources

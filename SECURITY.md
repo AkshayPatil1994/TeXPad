@@ -8,6 +8,7 @@ A hostile project must not be able to read or write anything outside itself, run
 | Boundary | What protects it |
 |---|---|
 | TeX engine → files | The engine is WebAssembly in a `WKWebView` with a non-persistent data store. It can only ask the app for files by *name* through the `tex://` scheme handler. `PathSafety.isSafeTeXName` rejects separators, `..`, `%` and control characters, and every resolved path must stay inside the bundle / cache / `TeXExtras` folder (symlinks resolved). |
+| Fonts | `/tl/fontfile/<name>` only returns files that `FontIndex` enumerated in the bundled `fonts/` or `TeXExtras/` folders (dictionary lookup, never a path join). |
 | TeX engine → network | None. The pages carry a Content-Security-Policy (`default-src 'none'`, `connect-src tex:`) and the web views refuse to navigate to anything but `tex://`. The app has no networking code. |
 | Project files → app | Every project-relative path (from TeX logs, web-view messages, drag-and-drop payloads, `.ipadtex.json`, user-typed names) is validated by `PathSafety` and resolved against the project root. Symlinks are never followed or listed. `outputDir` / `mainFile` from `.ipadtex.json` are sanitised on load. |
 | Build output → UI | Logs are size-capped (2 MB) and per-line capped before parsing; at most 500 diagnostics are produced. PDF link annotations other than `http`, `https`, `mailto` and in-document links are removed before display. |

@@ -39,7 +39,7 @@ endnotes manyfoot bigfoot parnotes lineno linegoal mparhack marginnote snotez ch
 widows-and-orphans nopageno emptypage pagecolor vmargin lettrine cuted flushend stfloats balance paracol indentfirst mdwtools
 shortlst tasks exam siunitx sistyle fontaxes inconsolata fontinst amsrefs ntheorem aliascnt cmbright sansmath mathastext
 newunicodechar substitutefont ccicons academicons fontawesome fontawesome5 ellipsis microtype ms mwe blindtext fp pgfkeys
-els-cas-templates sttools ieeetran catchfile gettitlestring filehook currfile letltxmacro expl3 xpatch regexpatch tabto fancyref cprotect shellesc
+els-cas-templates sttools ieeetran fontspec unicode-math polyglossia xunicode xltxtra mathspec fontwrap xecolor tex-ini-files catchfile gettitlestring filehook currfile letltxmacro expl3 xpatch regexpatch tabto fancyref cprotect shellesc
 """.split())
 MAX_DIR = 10**9
 
@@ -68,7 +68,7 @@ def copy_flat(src, exts):
                     shutil.copy(os.path.join(r, f), dst); added += 1
 
 # --- packages --------------------------------------------------------------------------
-for base in ("tex/latex", "tex/generic"):
+for base in ("tex/latex", "tex/generic", "tex/xelatex"):
     for d in sorted(os.listdir(os.path.join(D, base))):
         p = os.path.join(D, base, d)
         if not os.path.isdir(p): continue

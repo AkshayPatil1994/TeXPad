@@ -70,7 +70,7 @@ final class ProjectStore: ObservableObject {
 
     /// Copies a bundled sample project into Documents and opens it.
     func openSample(_ name: String) {
-        guard ["Thesis", "Manuscript", "Broken"].contains(name) else { return }
+        guard ["Thesis", "Manuscript", "XeLaTeX", "Broken"].contains(name) else { return }
         guard let src = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: "Samples") else {
             openError = "Sample \(name) not found in the app bundle"; return
         }

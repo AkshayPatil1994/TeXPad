@@ -133,3 +133,72 @@ final class RecipeTests: XCTestCase {
         XCTAssertTrue(d[0].message.hasPrefix("BibTeX:"))
     }
 }
+
+@MainActor
+final class XeLaTeXRecipeTests: XCTestCase {
+    func testMagicProgramComment() {
+        XCTAssertEqual(BuildRecipe.magicProgram(in: "% !TEX program = xelatex\n\\documentclass{article}"), "xelatex")
+        XCTAssertEqual(BuildRecipe.magicProgram(in: "%!TeX program=XeLaTeX"), "xelatex")
+        XCTAssertNil(BuildRecipe.magicProgram(in: String(repeating: "\n", count: 30) + "% !TEX program = xelatex"))   // only the first lines count
+        XCTAssertNil(BuildRecipe.magicProgram(in: "no comment here"))
+        XCTAssertEqual(BuildRecipe.recipe(forProgram: "xelatex")?.id, "xelatex-auto")
+        XCTAssertEqual(BuildRecipe.recipe(forProgram: "pdflatex")?.id, "pdflatex-auto")
+        XCTAssertNil(BuildRecipe.recipe(forProgram: "lualatex"))
+    }
+
+    func testXeLaTeXRecipeUsesXeTeXEngineAndProducesOnLastPass() async throws {
+        let fake = FakeExecutor([])
+        let out = try await RecipeRunner(executor: fake).run(.xelatexBibtex, main: "main.tex")
+        XCTAssertEqual(fake.requests.map(\.tool), [.xelatex, .bibtex, .xelatex, .xelatex])
+        XCTAssertEqual(fake.requests.map(\.engine), [.xetex, .xetex, .xetex, .xetex])
+        XCTAssertEqual(fake.requests.map(\.produce), [false, false, false, true])
+        XCTAssertTrue(out.ok)
+    }
+
+    func testEngineHintForFontspecWithPdfLaTeX() {
+        let log = "! Package fontspec Error: The fontspec package requires either XeTeX or LuaTeX."
+        XCTAssertNotNil(Project.engineHint(log: log, recipe: .pdflatexAuto))
+        XCTAssertNil(Project.engineHint(log: log, recipe: .xelatexAuto))
+        XCTAssertNil(Project.engineHint(log: "! Undefined control sequence.", recipe: .pdflatexAuto))
+    }
+}
+
+final class FontIndexTests: XCTestCase {
+    /// Uses the app's bundled OpenType fonts when present (they're git-ignored, so CI skips this).
+    func testResolvesFamiliesStylesAndFileNames() throws {
+        guard let dir = Bundle.main.url(forResource: "fonts", withExtension: nil) else { throw XCTSkip("no bundled fonts") }
+        let idx = FontIndex(directories: [dir])
+        try XCTSkipIf(idx.count == 0, "no fonts indexed")
+        XCTAssertNotNil(idx.resolve(name: "Latin Modern Roman", variant: "OT"))
+        XCTAssertNotNil(idx.resolve(name: "latinmodern-math", variant: ""))
+        let bold = idx.resolve(name: "Libertinus Serif", variant: "/B")?.lastPathComponent.lowercased()
+        XCTAssertTrue(bold?.contains("bold") == true, "got \(bold ?? "nil")")
+        XCTAssertNil(idx.resolve(name: "../../etc/passwd", variant: "OT"))
+        XCTAssertNil(idx.resolve(name: "No Such Font", variant: "OT"))
+    }
+
+    func testFontListMatchesTheLayoutXeTeXParses() throws {
+        guard let dir = Bundle.main.url(forResource: "fonts", withExtension: nil) else { throw XCTSkip("no bundled fonts") }
+        let idx = FontIndex(directories: [dir])
+        try XCTSkipIf(idx.count == 0, "no fonts indexed")
+        // Re-implementation of XeTeXFontMgr_FC::searchForHostPlatformFonts' reader: it must consume the text exactly.
+        var lines = idx.fontListText().components(separatedBy: "\n")
+        XCTAssertEqual(lines.last, "")
+        lines.removeLast()
+        var i = 0, fonts = 0
+        func next() -> String { defer { i += 1 }; return lines[i] }
+        func skipList() { let n = Int(next())!; i += n }
+        while i < lines.count {
+            XCTAssertEqual(Int(next()), fonts + 1)                 // id
+            XCTAssertTrue(next().hasPrefix("/fonts/"))             // path
+            XCTAssertEqual(next(), "0")                            // face index
+            skipList(); skipList(); skipList()                     // family, style, full names
+            i += 2                                                 // PostScript name, sub-family
+            i += 6                                                 // weight, width, slant, isReg, isBold, isItalic
+            i += 5                                                 // optical size fields
+            fonts += 1
+        }
+        XCTAssertEqual(i, lines.count)
+        XCTAssertEqual(fonts, idx.records.count)
+    }
+}
