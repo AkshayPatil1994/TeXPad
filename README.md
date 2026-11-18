@@ -45,6 +45,19 @@ Maintainers: `tools/make_bundle.sh <dir>` packs `texlive/` + `fonts/` for a GitH
 
 Free Apple ID builds: change `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml` to one of your own; builds expire after 7 days and must be reinstalled.
 
+## Install on your iPad
+You need a Mac with Xcode and an iPad (iPadOS 17+). A free Apple ID is enough.
+
+1. Do the **Build from source** steps above (libgit2, TeX bundle, `Local.xcconfig` with your Team ID, `xcodegen generate`).
+   Find your Team ID in Xcode → Settings → Accounts, or after step 4 in Signing & Capabilities.
+2. In `project.yml` change `PRODUCT_BUNDLE_IDENTIFIER` (and the tests' id) to something unique to you, e.g. `com.yourname.texpad`, then run `xcodegen generate` again.
+3. On the iPad: Settings → Privacy & Security → **Developer Mode** → on (it restarts the iPad). Connect it to the Mac with a cable and tap *Trust*.
+4. Open `TexPad.xcodeproj`, select the **TexPad** target → Signing & Capabilities → pick your Team (add your Apple ID under Xcode → Settings → Accounts if needed).
+5. Choose your iPad as the run destination (top bar) and press **⌘R**. The first install copies ~400 MB, so give it a minute.
+6. If the iPad says *Untrusted Developer*: Settings → General → VPN & Device Management → your Apple ID → **Trust**. Then open TexPad.
+
+After installing you can unplug; the app runs fully offline. With a free Apple ID the app **expires after 7 days** (and you can have at most 3 sideloaded apps): plug the iPad in and press ⌘R again to renew it. Your projects live in Files, not in the app, so they are untouched. A paid developer account ($99/yr) extends this to a year.
+
 Developer scripts (simulator):
 - `tools/run-sim.sh [Sample] [seconds] [screenshot.png]` — build, launch, optionally open a bundled sample and screenshot.
 - `tools/make_icon.py` — regenerates the app icon (needs Pillow).
