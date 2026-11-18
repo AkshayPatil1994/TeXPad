@@ -38,8 +38,11 @@ open TexPad.xcodeproj          # set your Team under Signing & Capabilities, the
 
 Developer scripts (simulator):
 - `tools/run-sim.sh [Sample] [seconds] [screenshot.png]` — build, launch, optionally open a bundled sample and screenshot.
+- `tools/make_icon.py` — regenerates the app icon (needs Pillow).
 - `tools/autotest.sh <project dir> [main.tex]` — headless build of a folder; prints parsed diagnostics. Missing TeX files are copied from your local TeX Live (`tools/fetch_tex_files.py`) so the bundle converges.
 - `xcodebuild test -scheme TexPad …` — unit tests (log parser, BibTeX parser, index, search, sync matching).
+
+Free Apple ID builds: copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` with your Team ID, and change `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml` to one of your own.
 
 The first launch builds the LaTeX format file (a few seconds) and caches it.
 
