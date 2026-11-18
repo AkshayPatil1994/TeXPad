@@ -38,8 +38,13 @@ targets:
         type: folder
         buildPhase: resources
         optional: true
+    dependencies:
+      - framework: Vendor/libgit2.xcframework
+        embed: false
     settings:
       base:
+        SWIFT_OBJC_BRIDGING_HEADER: TexPad/Git/TexPad-Bridging-Header.h
+        OTHER_LDFLAGS: "-lz -liconv"
         PRODUCT_BUNDLE_IDENTIFIER: com.akshay.texpad
         CODE_SIGN_STYLE: Automatic
         PRODUCT_NAME: TexPad

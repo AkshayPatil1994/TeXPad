@@ -7,4 +7,7 @@ Config/Local.xcconfig
 xcuserdata/
 node_modules/
 build-rel/
+build-signed/
 fonts/
+Vendor/
+build-libgit2/

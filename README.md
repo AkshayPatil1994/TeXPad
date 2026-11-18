@@ -24,10 +24,11 @@ A free, offline LaTeX IDE for iPad. It compiles on the device — no server, no 
 - The root `.tex` file's folder is the working directory; paths are relative to the project root.
 
 ## Build from source
-Requirements: Xcode 26+, [XcodeGen](https://github.com/yonaskolb/XcodeGen), Node 20+ (only to rebuild the editor), a local TeX Live (only to rebuild the TeX bundle).
+Requirements: Xcode 26+, [XcodeGen](https://github.com/yonaskolb/XcodeGen), CMake (`brew install cmake`, to build libgit2), Node 20+ (only to rebuild the editor), a local TeX Live (only to rebuild the TeX bundle).
 
 ```sh
 tools/seed_texlive.sh && python3 tools/seed_texlive_extra.py && python3 tools/close_deps.py && python3 tools/seed_fonts.py   # builds ./texlive from your local TeX Live (~350 MB, git-ignored)
+tools/build-libgit2.sh        # libgit2 from source -> Vendor/libgit2.xcframework (~25 s)
 cp Config/Local.xcconfig.example Config/Local.xcconfig   # then put your own Team ID in it
 (cd editor-src && npm install && node build.mjs)   # rebuilds TexPad/web/editor/editor.bundle.js
 xcodegen generate              # creates TexPad.xcodeproj from project.yml
