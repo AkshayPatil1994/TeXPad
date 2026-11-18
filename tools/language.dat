@@ -1,0 +1,7 @@
+% Minimal language.dat for TexPad: English only.
+english loadhyph-en-us.tex
+=usenglish
+=USenglish
+=american
+dumylang dumyhyph.tex
+nohyphenation zerohyph.tex

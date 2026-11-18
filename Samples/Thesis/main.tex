@@ -1,0 +1,50 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\title{A Sample Thesis}
+\author{ipadTex}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\input{chapters/intro}
+
+\section{Results}\label{sec:results}
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Method & Accuracy & Time \\
+\midrule
+A & 0.91 & 12 \\
+B & 0.95 & 20 \\
+\bottomrule
+\end{tabular}
+\caption{Comparison.}\label{tab:cmp}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.4\textwidth]{figures/pic.png}
+\caption{A picture.}\label{fig:pic}
+\end{figure}
+
+\begin{tikzpicture}
+\draw[thick,->] (0,0) -- (2,0) node[right]{$x$};
+\draw[thick,->] (0,0) -- (0,2) node[above]{$y$};
+\draw[blue] (0,0) circle (1);
+\end{tikzpicture}
+
+As shown in Section~\ref{sec:results} and Table~\ref{tab:cmp}, see \cite{knuth84,lamport94}.
+
+\bibliographystyle{plain}
+\bibliography{refs}
+\end{document}

@@ -1,0 +1,2 @@
+// Shared build settings. Personal signing settings live in Local.xcconfig (git-ignored).
+#include? "Local.xcconfig"

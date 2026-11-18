@@ -1,0 +1,9 @@
+*.xcodeproj
+texlive/
+build/
+.DS_Store
+Config/Local.xcconfig
+*.xcuserstate
+xcuserdata/
+node_modules/
+build-rel/

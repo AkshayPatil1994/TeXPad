@@ -1,0 +1,22 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Unit tests (iPad simulator)
+        run: |
+          DEST=$(xcrun simctl list devices available | grep -m1 -o 'iPad[^(]*' | sed 's/ *$//')
+          xcodebuild test -project TexPad.xcodeproj -scheme TexPad -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=$DEST" CODE_SIGNING_ALLOWED=NO
+      - name: Editor bundle is up to date
+        run: |
+          cd editor-src && npm ci && node build.mjs
+          git diff --exit-code -- ../TexPad/web/editor/editor.bundle.js

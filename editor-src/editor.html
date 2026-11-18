@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src tex: 'wasm-unsafe-eval'; style-src tex: 'unsafe-inline'; img-src tex: data:; font-src tex: data:; connect-src tex:; worker-src tex: blob:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>editor</title>
+<style>
+  :root {
+    --bg:#ffffff; --fg:#24292f; --gutter:#8c959f; --active-line:#f3f5f8; --selection:#cfe4ff; --panel:#f6f8fa; --border:#d0d7de;
+    --accent:#0a69da; --search:#ffe58f; --font: ui-monospace, "SF Mono", Menlo, monospace; --fs:15px;
+    --c-comment:#6e7781; --c-command:#0550ae; --c-env:#8250df; --c-bracket:#953800; --c-math:#116329; --c-meta:#6639ba; --c-error:#cf222e;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#1e1e1e; --fg:#d4d4d4; --gutter:#858585; --active-line:#2a2d2e; --selection:#264f78; --panel:#252526; --border:#3c3c3c;
+    --accent:#0e639c; --search:#613214; --c-comment:#6a9955; --c-command:#569cd6; --c-env:#c586c0; --c-bracket:#ffd700; --c-math:#ce9178; --c-meta:#4ec9b0; --c-error:#f48771; } }
+  :root[data-theme="dark"] {
+    --bg:#1e1e1e; --fg:#d4d4d4; --gutter:#858585; --active-line:#2a2d2e; --selection:#264f78; --panel:#252526; --border:#3c3c3c;
+    --accent:#0e639c; --search:#613214; --c-comment:#6a9955; --c-command:#569cd6; --c-env:#c586c0; --c-bracket:#ffd700; --c-math:#ce9178; --c-meta:#4ec9b0; --c-error:#f48771;
+  }
+  html, body { margin:0; height:100%; background:var(--bg); overflow:hidden; -webkit-text-size-adjust:100%; }
+  #editor { height:100%; }
+  #keybar { position:fixed; left:0; right:0; display:none; gap:6px; padding:6px 8px; background:var(--panel); border-top:1px solid var(--border);
+            overflow-x:auto; z-index:10; }
+  #keybar button { flex:0 0 auto; min-width:40px; height:36px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--fg);
+                   font:600 17px ui-monospace, Menlo, monospace; }
+</style>
+</head>
+<body>
+<div id="editor"></div>
+<script src="editor.bundle.js"></script>
+</body>
+</html>

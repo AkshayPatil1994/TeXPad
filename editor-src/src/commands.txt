@@ -1,0 +1,201 @@
+documentclass|\documentclass[${1}]{${2:article}}|class
+usepackage|\usepackage[${1}]{${2}}|package
+begin|\begin{${1:env}}⏎⇥${2}⏎\end{${1}}|environment
+end|\end{${1}}|end environment
+section|\section{${1}}|section
+subsection|\subsection{${1}}|subsection
+subsubsection|\subsubsection{${1}}|subsubsection
+paragraph|\paragraph{${1}}|paragraph
+subparagraph|\subparagraph{${1}}|subparagraph
+chapter|\chapter{${1}}|chapter
+part|\part{${1}}|part
+title|\title{${1}}|title
+author|\author{${1}}|author
+date|\date{${1}}|date
+maketitle|\maketitle|make title
+tableofcontents|\tableofcontents|table of contents
+listoffigures|\listoffigures|list of figures
+listoftables|\listoftables|list of tables
+appendix|\appendix|appendix
+label|\label{${1}}|label
+ref|\ref{${1}}|reference
+eqref|\eqref{${1}}|equation reference
+pageref|\pageref{${1}}|page reference
+autoref|\autoref{${1}}|hyperref autoref
+cref|\cref{${1}}|cleveref
+Cref|\Cref{${1}}|cleveref capitalised
+cite|\cite{${1}}|citation
+citep|\citep{${1}}|natbib parenthetical
+citet|\citet{${1}}|natbib textual
+footnote|\footnote{${1}}|footnote
+caption|\caption{${1}}|caption
+centering|\centering|centering
+includegraphics|\includegraphics[width=${1:0.8\textwidth}]{${2}}|insert image
+input|\input{${1}}|input file
+include|\include{${1}}|include file
+bibliography|\bibliography{${1}}|bibliography
+bibliographystyle|\bibliographystyle{${1:plain}}|bib style
+printbibliography|\printbibliography|biblatex
+addbibresource|\addbibresource{${1}}|biblatex resource
+textbf|\textbf{${1}}|bold
+textit|\textit{${1}}|italic
+textsc|\textsc{${1}}|small caps
+textsf|\textsf{${1}}|sans serif
+texttt|\texttt{${1}}|monospace
+textrm|\textrm{${1}}|roman
+emph|\emph{${1}}|emphasis
+underline|\underline{${1}}|underline
+textcolor|\textcolor{${1:red}}{${2}}|coloured text
+color|\color{${1:red}}|colour
+href|\href{${1:url}}{${2:text}}|hyperlink
+url|\url{${1}}|url
+item|\item ${1}|list item
+hline|\hline|table rule
+midrule|\midrule|booktabs
+toprule|\toprule|booktabs
+bottomrule|\bottomrule|booktabs
+cline|\cline{${1:1-2}}|partial rule
+multicolumn|\multicolumn{${1:2}}{${2:c}}{${3}}|span columns
+multirow|\multirow{${1:2}}{*}{${2}}|span rows
+newcommand|\newcommand{\${1:name}}[${2:0}]{${3}}|define command
+renewcommand|\renewcommand{\${1:name}}{${2}}|redefine command
+providecommand|\providecommand{\${1:name}}{${2}}|provide command
+newenvironment|\newenvironment{${1:name}}{${2}}{${3}}|define environment
+newtheorem|\newtheorem{${1:theorem}}{${2:Theorem}}|define theorem
+DeclareMathOperator|\DeclareMathOperator{\${1:name}}{${2}}|math operator
+setlength|\setlength{\${1:parindent}}{${2:0pt}}|set length
+newcounter|\newcounter{${1}}|counter
+setcounter|\setcounter{${1}}{${2}}|set counter
+addtocounter|\addtocounter{${1}}{${2:1}}|add to counter
+vspace|\vspace{${1:1em}}|vertical space
+hspace|\hspace{${1:1em}}|horizontal space
+newpage|\newpage|new page
+clearpage|\clearpage|clear page
+pagebreak|\pagebreak|page break
+linebreak|\linebreak|line break
+noindent|\noindent|no indent
+indent|\indent|indent
+par|\par|paragraph break
+hfill|\hfill|horizontal fill
+vfill|\vfill|vertical fill
+quad|\quad|quad space
+qquad|\qquad|double quad
+ldots|\ldots|ellipsis
+dots|\dots|dots
+today|\today|today's date
+LaTeX|\LaTeX|LaTeX logo
+TeX|\TeX|TeX logo
+pagestyle|\pagestyle{${1:plain}}|page style
+thispagestyle|\thispagestyle{${1:empty}}|this page style
+pagenumbering|\pagenumbering{${1:arabic}}|page numbering
+fbox|\fbox{${1}}|framed box
+mbox|\mbox{${1}}|box
+parbox|\parbox{${1:5cm}}{${2}}|paragraph box
+makebox|\makebox[${1:3cm}][${2:c}]{${3}}|box
+raisebox|\raisebox{${1:2pt}}{${2}}|raise box
+resizebox|\resizebox{${1:\textwidth}}{${2:!}}{${3}}|resize box
+scalebox|\scalebox{${1:0.5}}{${2}}|scale box
+rotatebox|\rotatebox{${1:90}}{${2}}|rotate
+footnotesize|\footnotesize|font size
+small|\small|font size
+large|\large|font size
+Large|\Large|font size
+LARGE|\LARGE|font size
+huge|\huge|font size
+Huge|\Huge|font size
+tiny|\tiny|font size
+normalsize|\normalsize|font size
+bfseries|\bfseries|bold series
+itshape|\itshape|italic shape
+scshape|\scshape|small caps shape
+sffamily|\sffamily|sans family
+ttfamily|\ttfamily|mono family
+rmfamily|\rmfamily|roman family
+mathbf|\mathbf{${1}}|math bold
+mathrm|\mathrm{${1}}|math roman
+mathit|\mathit{${1}}|math italic
+mathcal|\mathcal{${1}}|calligraphic
+mathbb|\mathbb{${1}}|blackboard bold
+mathfrak|\mathfrak{${1}}|fraktur
+mathsf|\mathsf{${1}}|math sans
+mathtt|\mathtt{${1}}|math mono
+boldsymbol|\boldsymbol{${1}}|bold symbol
+text|\text{${1}}|text in math
+frac|\frac{${1}}{${2}}|fraction
+dfrac|\dfrac{${1}}{${2}}|display fraction
+tfrac|\tfrac{${1}}{${2}}|text fraction
+sqrt|\sqrt[${1}]{${2}}|root
+sum|\sum_{${1:i=1}}^{${2:n}}|sum
+prod|\prod_{${1:i=1}}^{${2:n}}|product
+int|\int_{${1:a}}^{${2:b}}|integral
+oint|\oint|contour integral
+iint|\iint|double integral
+lim|\lim_{${1:n\to\infty}}|limit
+limsup|\limsup|limsup
+liminf|\liminf|liminf
+sup|\sup|supremum
+inf|\inf|infimum
+max|\max|maximum
+min|\min|minimum
+log|\log|log
+ln|\ln|natural log
+exp|\exp|exponential
+sin|\sin|sine
+cos|\cos|cosine
+tan|\tan|tangent
+det|\det|determinant
+dim|\dim|dimension
+ker|\ker|kernel
+arg|\arg|argument
+gcd|\gcd|gcd
+binom|\binom{${1}}{${2}}|binomial
+left|\left${1:(} ${2} \right${3:)}|auto-size delimiters
+right|\right|right delimiter
+big|\big|big delimiter
+Big|\Big|Big delimiter
+bigg|\bigg|bigg delimiter
+Bigg|\Bigg|Bigg delimiter
+overline|\overline{${1}}|overline
+underbrace|\underbrace{${1}}_{${2}}|underbrace
+overbrace|\overbrace{${1}}^{${2}}|overbrace
+hat|\hat{${1}}|hat
+widehat|\widehat{${1}}|wide hat
+tilde|\tilde{${1}}|tilde
+widetilde|\widetilde{${1}}|wide tilde
+bar|\bar{${1}}|bar
+vec|\vec{${1}}|vector
+dot|\dot{${1}}|dot
+ddot|\ddot{${1}}|double dot
+overrightarrow|\overrightarrow{${1}}|right arrow over
+stackrel|\stackrel{${1}}{${2}}|stack relation
+xrightarrow|\xrightarrow{${1}}|extensible arrow
+substack|\substack{${1}}|substack
+operatorname|\operatorname{${1}}|operator name
+displaystyle|\displaystyle|display style
+textstyle|\textstyle|text style
+nonumber|\nonumber|no equation number
+notag|\notag|no tag
+tag|\tag{${1}}|custom tag
+qedhere|\qedhere|qed here
+newline|\newline|new line
+tikz|\tikz ${1};|tikz inline
+draw|\draw ${1};|tikz draw
+node|\node[${1}] at (${2}) {${3}};|tikz node
+fill|\fill ${1};|tikz fill
+usetikzlibrary|\usetikzlibrary{${1}}|tikz libraries
+foreach|\foreach \${1:x} in {${2}} {${3}}|pgf foreach
+lstinputlisting|\lstinputlisting[language=${1}]{${2}}|listings file
+lstset|\lstset{${1}}|listings settings
+verb|\verb+${1}+|inline verbatim
+colorbox|\colorbox{${1:yellow}}{${2}}|coloured box
+definecolor|\definecolor{${1:name}}{${2:rgb}}{${3}}|define colour
+hypersetup|\hypersetup{${1}}|hyperref setup
+geometry|\geometry{${1}}|page geometry
+onehalfspacing|\onehalfspacing|setspace
+doublespacing|\doublespacing|setspace
+singlespacing|\singlespacing|setspace
+sisetup|\sisetup{${1}}|siunitx setup
+SI|\SI{${1}}{${2}}|siunitx quantity
+si|\si{${1}}|siunitx unit
+num|\num{${1}}|siunitx number
+abstract|\begin{abstract}⏎⇥${1}⏎\end{abstract}|abstract
