@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct WelcomeView: View {
     @EnvironmentObject var store: ProjectStore
     @State private var picking = false
+    @State private var cloning = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -18,6 +19,8 @@ struct WelcomeView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Button { picking = true } label: { Label("Open Folder…", systemImage: "folder") }
                         .buttonStyle(.borderedProminent).controlSize(.large)
+                    Button { cloning = true } label: { Label("Clone Repository…", systemImage: "arrow.down.to.line.circle") }
+                        .buttonStyle(.bordered).controlSize(.large)
                     Button { store.openSample("Thesis") } label: { Label("Open Sample Project", systemImage: "doc.text") }
                         .buttonStyle(.bordered).controlSize(.large)
                     Button { store.openSample("Manuscript") } label: { Label("Open Sample Manuscript (many packages)", systemImage: "doc.richtext") }
@@ -53,6 +56,7 @@ struct WelcomeView: View {
             .padding(40).frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(Color(.systemBackground))
+        .sheet(isPresented: $cloning) { CloneSheet().environmentObject(store) }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result { store.open(url: url) }
         }

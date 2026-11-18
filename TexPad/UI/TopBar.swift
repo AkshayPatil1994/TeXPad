@@ -65,11 +65,18 @@ struct TopBar: View {
 struct ActivityBar: View {
     @Binding var selection: SidebarTab?
     var problems: Int
+    var gitChanges = 0
     var body: some View {
         VStack(spacing: 4) {
             ForEach(SidebarTab.allCases) { t in
                 Button { selection = selection == t ? nil : t } label: {
                     Image(systemName: t.icon).font(.system(size: 20))
+                        .overlay(alignment: .topTrailing) {
+                            if t == .git && gitChanges > 0 {
+                                Text("\(min(gitChanges, 99))").font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
+                                    .padding(.horizontal, 5).padding(.vertical, 1).background(Color.accentColor, in: Capsule()).offset(x: 12, y: -8)
+                            }
+                        }
                         .frame(width: 48, height: 48)
                         .foregroundStyle(selection == t ? Color.accentColor : Color.secondary)
                         .background(selection == t ? Color.accentColor.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 8))
@@ -85,6 +92,7 @@ struct ActivityBar: View {
 struct StatusBar: View {
     @ObservedObject var project: Project
     @ObservedObject var engine: TeXEngine
+    @ObservedObject var git: GitModel
 
     var body: some View {
         HStack(spacing: 16) {
@@ -94,6 +102,12 @@ struct StatusBar: View {
             case .building: Label("Building \(project.buildStep ?? "")…", systemImage: "hammer")
             case .succeeded(let ms, let passes): Label("Built in \(ms) ms (\(passes) pass\(passes == 1 ? "" : "es"))", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
             case .failed: Label("Build failed", systemImage: "xmark.octagon.fill").foregroundStyle(.red)
+            }
+            if project.git.isRepo {
+                Label(project.git.status.branch ?? "detached", systemImage: "arrow.triangle.branch")
+                if project.git.status.ahead > 0 || project.git.status.behind > 0 {
+                    Text("↑\(project.git.status.ahead) ↓\(project.git.status.behind)")
+                }
             }
             Label("\(project.errorCount)", systemImage: "xmark.circle").foregroundStyle(project.errorCount > 0 ? .red : .secondary)
             Label("\(project.warningCount)", systemImage: "exclamationmark.triangle").foregroundStyle(project.warningCount > 0 ? .orange : .secondary)

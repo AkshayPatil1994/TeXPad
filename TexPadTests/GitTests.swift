@@ -278,11 +278,93 @@ final class GitHTTPTransportTests: XCTestCase {
         XCTAssertTrue(StubGitServer.seen.isEmpty)
     }
 
+    /// Regression: libgit2's git_transport_register() wants the bare scheme ("https"); with "https://" our transport was silently never used.
+    func testLibgit2ActuallyRoutesHTTPSThroughOurTransport() throws {
+        StubGitServer.handler = { _ in (404, [:], Data()) }
+        let dest = FileManager.default.temporaryDirectory.appendingPathComponent("route-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dest) }
+        XCTAssertThrowsError(try GitRepository.clone(from: "https://git.example.com/o/r.git", into: dest, progress: { _, _ in })) { e in
+            XCTAssertTrue(e.localizedDescription.contains("not found"), "got: \(e.localizedDescription)")
+        }
+        XCTAssertEqual(StubGitServer.seen.first?.url?.path, "/o/r.git/info/refs", "libgit2 should have asked our transport for the ref list")
+    }
+
     func testTokenNeverAppearsInErrorMessages() {
         GitHTTP.credentials = { _ in GitCredential(username: "bob", token: "SUPERSECRETTOKEN") }
         StubGitServer.handler = { _ in (401, [:], Data()) }
         let s = GitHTTPStream(url: URL(string: "https://git.example.com/o/r.git")!, service: 1)
         let r = readAll(s); s.cancel()
         XCTAssertFalse((r.error ?? "").contains("SUPERSECRETTOKEN"))
+    }
+}
+
+@MainActor
+final class GitModelTests: XCTestCase {
+    private var tmp: URL!
+    private var savedName: String?, savedEmail: String?
+
+    override func setUpWithError() throws {
+        tmp = FileManager.default.temporaryDirectory.appendingPathComponent("texpad-gitmodel-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        savedName = UserDefaults.standard.string(forKey: "gitName"); savedEmail = UserDefaults.standard.string(forKey: "gitEmail")
+        UserDefaults.standard.removeObject(forKey: "gitName"); UserDefaults.standard.removeObject(forKey: "gitEmail")
+    }
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: tmp)
+        if let n = savedName { UserDefaults.standard.set(n, forKey: "gitName") } else { UserDefaults.standard.removeObject(forKey: "gitName") }
+        if let e = savedEmail { UserDefaults.standard.set(e, forKey: "gitEmail") } else { UserDefaults.standard.removeObject(forKey: "gitEmail") }
+    }
+
+    func testInitializeCreatesGitignoreAndTracksChanges() async throws {
+        try "x".write(to: tmp.appendingPathComponent("main.tex"), atomically: true, encoding: .utf8)
+        let git = GitModel(root: tmp)
+        XCTAssertFalse(git.isRepo)
+        await git.initialize()
+        XCTAssertTrue(git.isRepo)
+        let ignore = try String(contentsOf: tmp.appendingPathComponent(".gitignore"))
+        XCTAssertTrue(ignore.contains("build/")); XCTAssertTrue(ignore.contains("*.aux"))
+        XCTAssertEqual(Set(git.status.changes.map(\.path)), [".gitignore", "main.tex"])
+        XCTAssertEqual(git.status.branch, "main")
+
+        // an existing .gitignore is never overwritten
+        let other = tmp.appendingPathComponent("other"); try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        try "mine".write(to: other.appendingPathComponent(".gitignore"), atomically: true, encoding: .utf8)
+        GitModel.writeDefaultGitignoreIfMissing(at: other)
+        XCTAssertEqual(try String(contentsOf: other.appendingPathComponent(".gitignore")), "mine")
+    }
+
+    func testCommitNeedsIdentityThenClearsMessage() async throws {
+        try "x".write(to: tmp.appendingPathComponent("main.tex"), atomically: true, encoding: .utf8)
+        let git = GitModel(root: tmp)
+        await git.initialize(); await git.stageAll()
+        XCTAssertEqual(git.stagedChanges.count, 2)
+
+        git.commitMessage = "first"
+        await git.commit()
+        XCTAssertNotNil(git.lastError, "no identity configured")
+        XCTAssertEqual(git.commitMessage, "first")
+
+        UserDefaults.standard.set("T U", forKey: "gitName"); UserDefaults.standard.set("t@users.noreply.github.com", forKey: "gitEmail")
+        await git.commit()
+        XCTAssertNil(git.lastError)
+        XCTAssertEqual(git.commitMessage, "")
+        XCTAssertNotNil(git.lastOID)
+        XCTAssertTrue(git.status.changes.isEmpty)
+    }
+
+    func testDiscardUntrackedDeletesFileAndNeverEscapesTheProject() async throws {
+        let outside = tmp.appendingPathComponent("outside.txt")
+        try "keep".write(to: outside, atomically: true, encoding: .utf8)
+        let root = tmp.appendingPathComponent("p"); try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try "junk".write(to: root.appendingPathComponent("junk.txt"), atomically: true, encoding: .utf8)
+        let git = GitModel(root: root)
+        await git.initialize()
+
+        await git.discard(GitFileChange(path: "../outside.txt", staged: nil, unstaged: .untracked))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: outside.path), "path traversal must be refused")
+
+        let junk = try XCTUnwrap(git.status.changes.first { $0.path == "junk.txt" })
+        await git.discard(junk)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("junk.txt").path))
     }
 }

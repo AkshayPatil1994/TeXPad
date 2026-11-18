@@ -14,6 +14,10 @@ struct SettingsView: View {
     @State private var main: String = ""
     @EnvironmentObject private var store: ProjectStore
     @State private var extrasCount = 0
+    @AppStorage("gitName") private var gitName = ""
+    @AppStorage("gitEmail") private var gitEmail = ""
+    @State private var tokenHosts: [String] = []
+    @State private var addToken = false
 
     private var texFiles: [String] { FileTree.flatten(project.tree).filter { $0.ext == "tex" }.map(\.path) }
 
@@ -40,6 +44,17 @@ struct SettingsView: View {
                     .onChange(of: main) { _, v in project.setMainFile(v.isEmpty ? nil : v); project.rebuildIndex() }
                     Text("Output goes to \(project.settings.outputDir)/ inside the project.").font(.caption).foregroundStyle(.secondary)
                 }
+                Section {
+                    TextField("Name", text: $gitName).textInputAutocapitalization(.words).autocorrectionDisabled()
+                    TextField("Email", text: $gitEmail).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.emailAddress)
+                    ForEach(tokenHosts, id: \.self) { h in
+                        Label("Token saved for \(h)", systemImage: "key.fill")
+                            .swipeActions { Button("Remove", role: .destructive) { GitCredentialStore.delete(host: h); tokenHosts = GitCredentialStore.hosts() } }
+                    }
+                    Button { addToken = true } label: { Label("Add access token…", systemImage: "plus") }
+                } header: { Text("Git") } footer: {
+                    Text("Name and email are written into your commits (use a no-reply address if you will publish them). Tokens live in the iOS Keychain and are only sent to their own host over HTTPS.")
+                }
                 Section("Extra TeX files") {
                     Text("Missing a package or font? Copy the .sty / .cls / .bst / .tfm files into TexPad/TeXExtras in the Files app (On My iPad), then rescan.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -54,7 +69,8 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .onAppear { main = project.settings.mainFile ?? ""; extrasCount = store.engine.handler.extrasCount }
+            .onAppear { main = project.settings.mainFile ?? ""; extrasCount = store.engine.handler.extrasCount; tokenHosts = GitCredentialStore.hosts() }
+            .sheet(isPresented: $addToken, onDismiss: { tokenHosts = GitCredentialStore.hosts() }) { GitTokenSheet(host: "github.com") }
         }
     }
 }

@@ -69,6 +69,7 @@ private final class ProgressBox {
     var handler: (Double, String) -> Void
     var rejection: String?
     var cancelled = false
+    var cancelToken: GitCancelToken?
     init(_ h: @escaping (Double, String) -> Void) { handler = h }
 }
 
@@ -169,21 +170,25 @@ final class GitRepository {
 
     /// Clones into `destination` (which must not exist yet). `core.symlinks=false` is set before checkout so a hostile
     /// repository can't plant symlinks in the working tree.
-    static func clone(from rawURL: String, into destination: URL, progress: @escaping (Double, String) -> Void) throws -> GitRepository {
+    static func clone(from rawURL: String, into destination: URL, cancel: GitCancelToken? = nil,
+                      progress: @escaping (Double, String) -> Void) throws -> GitRepository {
         let url = try GitURL.validate(rawURL)
-        return try cloneUnchecked(urlString: url.absoluteString, into: destination, progress: progress)
+        return try cloneUnchecked(urlString: url.absoluteString, into: destination, cancel: cancel, progress: progress)
     }
 
     /// Clone without the https-only rule — for tests that clone from local `file://` repositories.
-    static func cloneUnchecked(urlString: String, into destination: URL, progress: @escaping (Double, String) -> Void) throws -> GitRepository {
+    static func cloneUnchecked(urlString: String, into destination: URL, cancel: GitCancelToken? = nil,
+                               progress: @escaping (Double, String) -> Void) throws -> GitRepository {
         try bootstrap()
         var opts = git_clone_options()
         try check(git_clone_options_init(&opts, UInt32(GIT_CLONE_OPTIONS_VERSION)))
         let box = ProgressBox(progress)
+        box.cancelToken = cancel
         opts.fetch_opts.callbacks.payload = Unmanaged.passUnretained(box).toOpaque()
         opts.fetch_opts.callbacks.transfer_progress = { stats, payload in
             guard let stats, let payload else { return 0 }
             let b = Unmanaged<ProgressBox>.fromOpaque(payload).takeUnretainedValue()
+            if b.cancelToken?.cancelled == true { return -1 }
             let s = stats.pointee
             let total = max(1, Double(s.total_objects))
             b.handler(Double(s.received_objects) / total * 0.9 + Double(s.indexed_objects) / total * 0.1,

@@ -4,10 +4,10 @@
 import SwiftUI
 
 enum SidebarTab: String, CaseIterable, Identifiable {
-    case explorer, search, outline, symbols
+    case explorer, search, git, outline, symbols
     var id: String { rawValue }
-    var icon: String { switch self { case .explorer: "doc.on.doc"; case .search: "magnifyingglass"; case .outline: "list.bullet.indent"; case .symbols: "function" } }
-    var title: String { switch self { case .explorer: "Explorer"; case .search: "Search"; case .outline: "Outline"; case .symbols: "Insert" } }
+    var icon: String { switch self { case .explorer: "doc.on.doc"; case .search: "magnifyingglass"; case .git: "arrow.triangle.branch"; case .outline: "list.bullet.indent"; case .symbols: "function" } }
+    var title: String { switch self { case .explorer: "Explorer"; case .search: "Search"; case .git: "Source Control"; case .outline: "Outline"; case .symbols: "Insert" } }
 }
 
 enum BottomTab: String, CaseIterable { case problems = "Problems", log = "Build Log" }
@@ -15,7 +15,11 @@ enum BottomTab: String, CaseIterable { case problems = "Problems", log = "Build 
 struct IDEView: View {
     @ObservedObject var project: Project
     @EnvironmentObject var store: ProjectStore
+    #if DEBUG
+    @State private var sidebarTab: SidebarTab? = ProcessInfo.processInfo.environment["TEXPAD_SIDEBAR"].flatMap { SidebarTab(rawValue: $0) } ?? .explorer
+    #else
     @State private var sidebarTab: SidebarTab? = .explorer
+    #endif
     #if DEBUG
     @State private var showPDF = ProcessInfo.processInfo.environment["TEXPAD_SHOW_PDF"] != nil
     #else
@@ -46,7 +50,7 @@ struct IDEView: View {
                 let narrow = geo.size.width < 1000
                 let _ = DispatchQueue.main.async { if screenWidth != geo.size.width { screenWidth = geo.size.width } }
                 HStack(spacing: 0) {
-                    ActivityBar(selection: $sidebarTab, problems: project.errorCount)
+                    ActivityBar(selection: $sidebarTab, problems: project.errorCount, gitChanges: project.git.changeCount)
                     Divider()
                     if let tab = sidebarTab {
                         SidebarView(project: project, tab: tab).frame(width: sidebarWidth)
@@ -70,7 +74,7 @@ struct IDEView: View {
                 .onAppear { if !narrow && !showPDF { showPDF = true } }
             }
             Divider()
-            StatusBar(project: project, engine: store.engine)
+            StatusBar(project: project, engine: store.engine, git: project.git)
             if keyboard.visible && project.active != nil && !showPDFOnly { KeyBar(project: project) }
         }
         .background(Color(.systemBackground))

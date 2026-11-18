@@ -20,6 +20,7 @@ final class Project: ObservableObject {
     let root: URL
     let engine: TeXEngine
     let editor = EditorController()
+    let git: GitModel
 
     @Published var tree: [FileNode] = []
     @Published var tabs: [String] = []
@@ -51,12 +52,14 @@ final class Project: ObservableObject {
     init(root: URL, engine: TeXEngine) {
         self.root = root
         self.engine = engine
+        self.git = GitModel(root: root)
         var loaded = ProjectSettings.load(from: root)
         // .ipadtex.json lives inside the (possibly untrusted) project: never let it point outside the project.
         if !PathSafety.isSafeRelative(loaded.outputDir) { loaded.outputDir = "build" }
         if let m = loaded.mainFile, !PathSafety.isSafeRelative(m) { loaded.mainFile = nil }
         self.settings = loaded
         editor.onEvent = { [weak self] e in self?.handle(e) }
+        git.onFilesChanged = { [weak self] in self?.refreshFromDisk() }
         reloadTree()
         loadAllText()
         rebuildIndex()
@@ -161,6 +164,7 @@ final class Project: ObservableObject {
         saveTask?.cancel()
         let was = !dirty.isEmpty
         for p in dirty { save(p) }
+        if was { git.refreshSoon() }
         if was, settings.autoBuild, UserDefaults.standard.object(forKey: "autoBuild") as? Bool ?? true { scheduleAutoBuild() }
     }
 

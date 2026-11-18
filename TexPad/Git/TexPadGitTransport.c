@@ -84,7 +84,7 @@ static int transport_factory(git_transport **out, git_remote *owner, void *param
 
 int texpad_git_register_https(const texpad_http_ops *ops) {
     g_ops = *ops;
-    return git_transport_register("https://", transport_factory, NULL);
+    return git_transport_register("https", transport_factory, NULL);   /* libgit2 appends "://" itself */
 }
 
 int texpad_git_init(void) {

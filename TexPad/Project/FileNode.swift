@@ -41,7 +41,7 @@ enum FileTree {
         for u in items {
             let name = u.lastPathComponent
             if ignoredNames.contains(name) { continue }
-            if name.hasPrefix(".") && !showHidden { continue }
+            if name.hasPrefix(".") && !showHidden && name != ".gitignore" { continue }
             let values = try? u.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
             // Symlinks could point outside the project (or form loops): don't follow or list them.
             if values?.isSymbolicLink == true { continue }

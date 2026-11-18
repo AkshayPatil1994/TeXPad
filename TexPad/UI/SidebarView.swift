@@ -15,6 +15,7 @@ struct SidebarView: View {
             switch tab {
             case .explorer: ExplorerView(project: project)
             case .search: SearchView(project: project)
+            case .git: SourceControlView(project: project, git: project.git)
             case .outline: OutlineView(project: project)
             case .symbols: SymbolsView(project: project)
             }
